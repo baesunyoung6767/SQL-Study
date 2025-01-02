@@ -48,3 +48,33 @@ SELECT 사원.사원번호,
 
 ✅ 다만 위 쿼리의 실행 계획을 살펴보면 ```DEPENDENT SUBQUERY```가 출력되는데 이는 호출을 반복해 일으키므로 자주 반복 호출될 경우에는 지양해야 한다! <br><br>
 
+### 비효율적인 페이징을 수행하는 나쁜 SQL 문
+---
+**튜닝 전 수행 결과** <br>
+```
+SELECT 사원.사원번호, 사원.이름, 사원.성, 사원.입사일자
+FROM 사원, 급여
+WHERE 사원.사원번호 = 급여.사원번호
+AND 사원.사원번호 BETWEEN 10001 AND 50000
+GROUP BY 사원.사원번호
+ORDER BY SUM(급여.연봉) DESC
+LIMIT 150, 10;
+
+10 rows in set (0.844sec)
+```
+→ 전체 데이터를 가져온 뒤 마지막으로 10건의 데이터만 조회하고 있는 것은 비효율적일 수 있다. 
+
+**튜닝 후 수행 결과** <br>
+```
+SELECT 사원.사원번호, 사원.이름, 사원.성, 사원.입사일자
+FROM (SELECT 사원번호
+		FROM 급여
+        WHERE 사원번호 BETWEEN 10001 AND 50000
+        GROUP BY 사원번호
+        ORDER BY SUM(급여.연봉) DESC
+        LIMIT 150, 10) 급여,
+		사원
+WHERE 사원.사원번호 = 급여.사원번호;
+
+10 rows in set (0.313sec)
+```
